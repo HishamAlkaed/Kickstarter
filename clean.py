@@ -1,5 +1,5 @@
 # CLI
-import click
+# import click
 
 # Data
 import pandas
@@ -10,6 +10,9 @@ from spacy.tokens import Doc, Token
 # Other
 from os.path import splitext
 
+# import en_core_web_sm
+# nlp = en_core_web_sm.load()
+
 nlp = spacy.load("en_core_web_sm")
 pandas.set_option("display.max_colwidth", None)
 
@@ -19,7 +22,7 @@ def clean_text(text: str) -> str:
     text = text.lower()
 
     # Remove full URLs
-    text = re.sub("http\S+", "", text)
+#     text = re.sub("http\S+", "", text)
 
     # NLP with Spacy
     tokens: list[Token] = nlp(text)
@@ -40,13 +43,13 @@ def clean_text(text: str) -> str:
     return text
 
 
-@click.group()
+# @click.group()
 def cli():
     pass
 
 
-@cli.command()
-@click.argument("text")
+# @cli.command()
+# @click.argument("text")
 def test(text: str):
     """Allows you to test the text cleaning without a dataset."""
 
@@ -54,46 +57,46 @@ def test(text: str):
     print(f"Text without processing:\n{text}\n\nText with processing:\n{new_text}")
 
 
-@cli.command()
-@click.argument("file_name", type=click.Path(exists=True))
-@click.option("--limited/--full", default=True, help="Limited output")
-def clean(file_name: str, limited: bool):
+def remove_unneeded(df):
+    df.country = df.country.fillna(df.country.mode().iloc[0])
+    df.country.isnull().sum()
+    # the rows before 
+    df = df.drop([5423, 27780])
+    # remove float numbers from blurb
+    df = df.drop([31717, 50117])
+    return df
+
+# @cli.command()
+# @click.argument("file_name", type=click.Path(exists=True))
+# @click.option("--limited/--full", default=True, help="Limited output")
+def clean(data, limited: bool, feature: str):
     """Transforms an entire dataset into clean data."""
-
-    # Open the dataset
-    data = pandas.read_csv(file_name)
-
-    # Drop the location column as we currently have no use for it.
-    # TODO: Figure out how to clean/use location?
-    data = data.drop("location", axis=1)
-
-    # Drop all rows with missing values
-    data = data.dropna()
 
     # Select the first 50 items during testing
     if limited:
         data = data[:50]
 
     # Re-map the text column with cleaned text
-    data["text"] = data["text"].map(clean_text)
+    data[feature] = data[feature].map(clean_text)
 
     # Drop the `id` column
-    data = data.drop("id", axis=1)
+    data = data.drop("project_id", axis=1)
     data = data.reset_index(drop=True)
 
     # Drop duplicates
-    data = data.drop_duplicates(subset=["text"])
+#     data = data.drop_duplicates(subset=[feature])
 
-    if limited:
-        print(f"Cleaned items:\n{data}\n")
+#     if limited:
+#         print(f"Cleaned items:\n{data}\n")
 
-    print(data.info())
+#     print(data.info())
 
     # Export data to CSV
-    file_name, _ = splitext(file_name)
-    file_name = f"{file_name}_clean.csv"
+#     file_name, _ = splitext('d)
+    file_name = f"clean_dataset.csv"
     data.to_csv(file_name, index=False)
+    return data
 
 
-if __name__ == "__main__":
-    cli()
+# if __name__ == "__main__":
+#     cli()
