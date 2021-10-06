@@ -59,12 +59,15 @@ def test(text: str):
 
 def remove_unneeded(df):
     df.country = df.country.fillna(df.country.mode().iloc[0])
-    df.country.isnull().sum()
-    # the rows before 
-    df = df.drop([5423, 27780])
+    df = df.drop([5423, 27780]) # remove null blurbs
     # remove float numbers from blurb
-    df = df.drop([31717, 50117])
-    return df
+    df = df.drop([31717, 50117]) # remove float blurbs
+    # remove goals higher than 1 mil (OUTLIERS)
+    df = df.drop(df[df.goal > 1000000].index.tolist())
+    
+    df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'project_id', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'fx_rate'], axis=1)
+    
+    return df 
 
 # @cli.command()
 # @click.argument("file_name", type=click.Path(exists=True))
