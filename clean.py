@@ -59,11 +59,14 @@ def test(text: str):
 
 def remove_unneeded(df):
     df.country = df.country.fillna(df.country.mode().iloc[0])
-    df = df.drop([5423, 27780]) # remove null blurbs
+#     df = df.drop([5423, 27780]) # remove null blurbs
+    df = df.dropna(subset=['blurb'])
     # remove float numbers from blurb
-    df = df.drop([31717, 50117]) # remove float blurbs
+#     df = df.drop([31717, 50117]) # remove float blurbs
+#     df.blurb = df[df.blurb.str.isalpha()].blurb
+    df = df.drop(df[df.blurb.str.isnumeric()].index)
     # remove goals higher than 1 mil (OUTLIERS)
-    df = df.drop(df[df.goal > 1000000].index.tolist())
+#     df = df.drop(df[df.goal > 1000000].index.tolist())
     
     df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'project_id', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'fx_rate'], axis=1)
     
@@ -78,12 +81,15 @@ def clean(data, limited: bool, feature: str):
     # Select the first 50 items during testing
     if limited:
         data = data[:50]
-
+    
+#     data = remove_unneeded(data)
+    
     # Re-map the text column with cleaned text
     data[feature] = data[feature].map(clean_text)
 
     # Drop the `id` column
-    data = data.drop("project_id", axis=1)
+#     data = data.drop("project_id", axis=1)
+    
     data = data.reset_index(drop=True)
 
     # Drop duplicates
