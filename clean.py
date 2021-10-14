@@ -1,17 +1,11 @@
-# CLI
-# import click
-
-# Data
 import pandas
 import re
 import spacy
 from spacy.tokens import Doc, Token
+from sklearn import preprocessing
+import numpy as np
 
-# Other
 from os.path import splitext
-
-# import en_core_web_sm
-# nlp = en_core_web_sm.load()
 
 nlp = spacy.load("en_core_web_sm")
 pandas.set_option("display.max_colwidth", None)
@@ -20,9 +14,6 @@ pandas.set_option("display.max_colwidth", None)
 def clean_text(text: str) -> str:
     # To lower-case
     text = text.lower()
-
-    # Remove full URLs
-#     text = re.sub("http\S+", "", text)
 
     # NLP with Spacy
     tokens: list[Token] = nlp(text)
@@ -42,70 +33,92 @@ def clean_text(text: str) -> str:
 
     return text
 
+def encode(feature, df):
+    enc = preprocessing.OneHotEncoder()
+    enc.fit(np.asarray(df[feature]).reshape(-1, 1))
+    encoded_feature = enc.transform(np.asarray(df[feature]).reshape(-1, 1))
+    return encoded_feature, enc
 
-# @click.group()
-def cli():
-    pass
+def encode_features(df):
+        # one hot encode the categorical features
+    df.category, _ = encode('category', df)
+    df.category = df.category.toarray()
+    df.subcategory, _ = encode('subcategory', df)
+    df.subcategory = df.subcategory.toarray()
+    df.country, _ = encode('country', df)
+    df.country = df.country.toarray()
+    df.currency, _ = encode('currency', df)
+    df.currency = df.currency.toarray()
+    df.location, _ = encode('location', df)
+    df.location = df.location.toarray()
+    
+    return df
 
+def prepare(df):
+    ''' This bad boy:
+        - adds log hbl
+        - adds hbd
+            - fills country values that are missing witht the mode
+            - removes null values and empty strings from blurb AND NAME
+            - removes numeric values from blurb AND NAME
+        - one hot encodes the categorical features /////Not Any More/////
+        + vectorizes blurb  # TODO : No need if we use two models
+        + vectorizes name  # TODO : No need if we use two models
+    '''
+    # hours before launch => log to normalize
+    df['log_hbl'] = df.apply(lambda x: abs(np.log((x.launched_at - x.created_at)/3600)) , axis=1)
+    # hours before deadline => not logged because of the 
+    df['hbd'] = df.apply(lambda x: (x.deadline - x.launched_at)/3600 , axis=1)
+    
+    df = remove_unneeded(df)
+    
+#     df = encode_features(df)
 
-# @cli.command()
-# @click.argument("text")
-def test(text: str):
-    """Allows you to test the text cleaning without a dataset."""
+    
+    # vectorizes blurb
 
-    new_text = clean_text(text)
-    print(f"Text without processing:\n{text}\n\nText with processing:\n{new_text}")
-
+    return df
 
 def remove_unneeded(df):
+    ''' This bad boy:
+        - fills country values that are missing witht the mode
+        - removes null values and empty strings from blurb AND NAME
+        - removes numeric values from blurb AND NAME
+    '''
     df.country = df.country.fillna(df.country.mode().iloc[0])
-#     df = df.drop([5423, 27780]) # remove null blurbs
+    
+    # remove null values from blurb AND NAME
     df = df.dropna(subset=['blurb'])
-    # remove float numbers from blurb
-#     df = df.drop([31717, 50117]) # remove float blurbs
-#     df.blurb = df[df.blurb.str.isalpha()].blurb
+    df = df.dropna(subset=['name'])
+    
+    # remove numeric values from blurb AND NAME
     df = df.drop(df[df.blurb.str.isnumeric()].index)
+    df = df.drop(df[df.name.str.isnumeric()].index)
+    
     # remove goals higher than 1 mil (OUTLIERS)
 #     df = df.drop(df[df.goal > 1000000].index.tolist())
     
-    df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'project_id', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'fx_rate'], axis=1)
+    df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'project_id', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'fx_rate', 'location'], axis=1)
     
     return df 
 
-# @cli.command()
-# @click.argument("file_name", type=click.Path(exists=True))
-# @click.option("--limited/--full", default=True, help="Limited output")
-def clean(data, limited: bool, feature: str):
+def clean(data, limited: bool):
     """Transforms an entire dataset into clean data."""
 
     # Select the first 50 items during testing
     if limited:
         data = data[:50]
-    
-#     data = remove_unneeded(data)
+        
+#     data = prepare(data)
     
     # Re-map the text column with cleaned text
-    data[feature] = data[feature].map(clean_text)
+    data['blurb'] = data['blurb'].map(clean_text)
+    data['name'] = data['name'].map(clean_text)
 
-    # Drop the `id` column
-#     data = data.drop("project_id", axis=1)
-    
     data = data.reset_index(drop=True)
-
-    # Drop duplicates
-#     data = data.drop_duplicates(subset=[feature])
-
-#     if limited:
-#         print(f"Cleaned items:\n{data}\n")
-
-#     print(data.info())
 
     # Export data to CSV
 #     file_name, _ = splitext('d)
     file_name = f"clean_dataset.csv"
     data.to_csv(file_name, index=False)
     return data
-
-
-# if __name__ == "__main__":
-#     cli()
