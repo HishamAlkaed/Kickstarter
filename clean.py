@@ -49,8 +49,8 @@ def encode_features(df):
     df.country = df.country.toarray()
     df.currency, _ = encode('currency', df)
     df.currency = df.currency.toarray()
-    df.location, _ = encode('location', df)
-    df.location = df.location.toarray()
+#     df.location, _ = encode('location', df)
+#     df.location = df.location.toarray()
     
     return df
 
@@ -98,7 +98,7 @@ def remove_unneeded(df):
     # remove goals higher than 1 mil (OUTLIERS)
 #     df = df.drop(df[df.goal > 1000000].index.tolist())
     
-    df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'project_id', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'fx_rate', 'location'], axis=1)
+    df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'location'], axis=1)
     
     return df 
 
