@@ -1,14 +1,17 @@
 import pandas
 import re
-import spacy
-from spacy.tokens import Doc, Token
+# import spacy
+# from spacy.tokens import Doc, Token
 from sklearn import preprocessing
+from sklearn.preprocessing import MinMaxScaler
+
 import numpy as np
+import category_encoders as ce
 
 from os.path import splitext
 
-nlp = spacy.load("en_core_web_sm")
-pandas.set_option("display.max_colwidth", None)
+# nlp = spacy.load("en_core_web_sm")
+# pandas.set_option("display.max_colwidth", None)
 
 
 def clean_text(text: str) -> str:
@@ -33,25 +36,16 @@ def clean_text(text: str) -> str:
 
     return text
 
-def encode(feature, df):
-    enc = preprocessing.OneHotEncoder()
-    enc.fit(np.asarray(df[feature]).reshape(-1, 1))
-    encoded_feature = enc.transform(np.asarray(df[feature]).reshape(-1, 1))
-    return encoded_feature, enc
+def scale_data(df, features=['blurb', 'name', 'hbl', 'goal', 'funded']):
+    scaler = MinMaxScaler()
+    df_scaled = scaler.fit_transform(df.drop(features, axis=1))
+    return df_scaled
 
-def encode_features(df):
-        # one hot encode the categorical features
-    df.category, _ = encode('category', df)
-    df.category = df.category.toarray()
-    df.subcategory, _ = encode('subcategory', df)
-    df.subcategory = df.subcategory.toarray()
-    df.country, _ = encode('country', df)
-    df.country = df.country.toarray()
-    df.currency, _ = encode('currency', df)
-    df.currency = df.currency.toarray()
-#     df.location, _ = encode('location', df)
-#     df.location = df.location.toarray()
-    
+
+def onehot_encode(df):
+    encoder = ce.one_hot.OneHotEncoder(cols=['category', 'country', 'currency', 'subcategory', 'staff_pick'])
+
+    df = encoder.fit_transform(df)
     return df
 
 def prepare(df):
@@ -62,24 +56,21 @@ def prepare(df):
             - removes null values and empty strings from blurb AND NAME
             - removes numeric values from blurb AND NAME
         - one hot encodes the categorical features /////Not Any More/////
-        + vectorizes blurb  # TODO : No need if we use two models
-        + vectorizes name  # TODO : No need if we use two models
     '''
     # hours before launch => log to normalize
     df['log_hbl'] = df.apply(lambda x: abs(np.log((x.launched_at - x.created_at)/3600)) , axis=1)
     # hours before deadline => not logged because of the 
     df['hbd'] = df.apply(lambda x: (x.deadline - x.launched_at)/3600 , axis=1)
+    # convert the goal to usd currency.
+    df['goal_usd'] = df.apply(lambda x: x.goal * x.fx_rate, axis=1)
+    # 
+    df['len_blurb'] = df.apply(lambda x: len(x.blurb.split()), axis=1)
     
-    df = remove_unneeded(df)
-    
-#     df = encode_features(df)
-
-    
-    # vectorizes blurb
+    df = onehot_encode(df)
 
     return df
 
-def remove_unneeded(df):
+def remove_unneeded(df, mode='training'):
     ''' This bad boy:
         - fills country values that are missing witht the mode
         - removes null values and empty strings from blurb AND NAME
@@ -97,8 +88,10 @@ def remove_unneeded(df):
     
     # remove goals higher than 1 mil (OUTLIERS)
 #     df = df.drop(df[df.goal > 1000000].index.tolist())
-    
-    df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'location'], axis=1)
+    if mode == 'training':
+        df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'location'], axis=1)
+    else:
+        df = df.drop(['project_url', 'reward_url', 'location'], axis=1)
     
     return df 
 
