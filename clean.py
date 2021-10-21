@@ -51,12 +51,12 @@ def onehot_encode(df):
 
 def prepare(df):
     ''' This bad boy:
-        - adds log hbl
-        - adds hbd
-            - fills country values that are missing witht the mode
-            - removes null values and empty strings from blurb AND NAME
-            - removes numeric values from blurb AND NAME
-        - one hot encodes the categorical features /////Not Any More/////
+        - adds log hbl # hours before launch
+        - adds hbd # hourse before deadline
+        - adds goal_usd => goal converted to usd
+        - adds len_blurb => length of the blurb
+        - adds sent_blurb = > sentiment analysis of blurb
+        - one hot encodes the categorical features
     '''
     # hours before launch => log to normalize
     df['log_hbl'] = df.apply(lambda x: abs(np.log((x.launched_at - x.created_at)/3600)) , axis=1)
@@ -66,7 +66,8 @@ def prepare(df):
     df['goal_usd'] = df.apply(lambda x: x.goal * x.fx_rate, axis=1)
     # 
     df['len_blurb'] = df.apply(lambda x: len(x.blurb.split()), axis=1)
-    
+    #
+    df['sent_blurb'] = df.apply(lambda x: sent_analysis(x.blurb), axis=1)
     df = onehot_encode(df)
 
     return df
@@ -76,6 +77,7 @@ def remove_unneeded(df, mode='training'):
         - fills country values that are missing witht the mode
         - removes null values and empty strings from blurb AND NAME
         - removes numeric values from blurb AND NAME
+        - drops unneeded columns
     '''
     df.country = df.country.fillna(df.country.mode().iloc[0])
     
