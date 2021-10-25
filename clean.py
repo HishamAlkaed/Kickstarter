@@ -39,7 +39,7 @@ def clean_text(text: str) -> str:
 
 def scale_data(df, exclude=['blurb', 'name', 'hbl', 'goal', 'funded']):
     scaler = MinMaxScaler()
-    df_scaled = scaler.fit_transform(df.drop(features, axis=1))
+    df_scaled = scaler.fit_transform(df.drop(exclude, axis=1))
     return df_scaled
 
 
