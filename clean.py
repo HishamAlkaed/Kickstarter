@@ -1,8 +1,8 @@
 import pandas
 
 import re
-# import spacy
-# from spacy.tokens import Doc, Token
+import spacy
+from spacy.tokens import Doc, Token
 from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
 
@@ -11,9 +11,8 @@ import category_encoders as ce
 
 from os.path import splitext
 
-# nlp = spacy.load("en_core_web_sm")
-# pandas.set_option("display.max_colwidth", None)
-
+nlp = spacy.load("en_core_web_sm")
+nlp.add_pipe('spacytextblob')
 
 def clean_text(text: str) -> str:
     # To lower-case
@@ -48,6 +47,10 @@ def onehot_encode(df):
 
     df = encoder.fit_transform(df)
     return df
+
+def sent_analysis(text):
+    doc = nlp(text)
+    return doc._.polarity
 
 def prepare(df):
     ''' This bad boy:
@@ -89,8 +92,6 @@ def remove_unneeded(df, mode='training'):
     df = df.drop(df[df.blurb.str.isnumeric()].index)
     df = df.drop(df[df.name.str.isnumeric()].index)
     
-    # remove goals higher than 1 mil (OUTLIERS)
-#     df = df.drop(df[df.goal > 1000000].index.tolist())
     if mode == 'training':
         df = df.drop(['pledged', 'usd_pledged', 'converted_pledged_amount', 'backers_count', 'created_at', 'launched_at', 'deadline', 'project_url', 'reward_url', 'location'], axis=1)
     else:
@@ -105,7 +106,6 @@ def clean(data, limited: bool):
     if limited:
         data = data[:50]
         
-#     data = prepare(data)
     
     # Re-map the text column with cleaned text
     data['blurb'] = data['blurb'].map(clean_text)
@@ -114,7 +114,6 @@ def clean(data, limited: bool):
     data = data.reset_index(drop=True)
 
     # Export data to CSV
-#     file_name, _ = splitext('d)
     file_name = f"clean_dataset.csv"
     data.to_csv(file_name, index=False)
     return data
